@@ -169,8 +169,7 @@ cross_loadings_with_res_cov_d150<- paste(cross_loadings_with_res_cov, res_cov, s
 fit_CL_with_rescv_d150 <- map(1:5, ~run_model(model = cross_loadings_with_res_cov_d150, data = dat,
                                     dp = dpriors(lambda ="normal(0,0.01)")))
 
-fit_CL_with_rescv_d150[[1]] |> summary()del, data = dat, family = gaussian)
-summary(fit_CL_with_rescv_d150[[1]])
+fit_CL_with_rescv_d150
 
 
 ```
