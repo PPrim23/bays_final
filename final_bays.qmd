@@ -135,7 +135,7 @@ run_model <- function(model, data, seed = 123,
               adapt = adapt,
               dp = dp,
               bcontrol = list(cores = n.chain, thin = thin))
-  
+  }
   
 cross_loadings_with_res_cov <- '
 ## main factor loadings
