@@ -1,0 +1,176 @@
+---
+title: "finalBays"
+format: html
+editor: visual
+---
+
+```{r}
+library(brms)
+library(lavaan)
+library(blavaan)
+library(dplyr)
+library(tidyr)
+library(tidybayes)
+library(ggplot2)
+library(purrr)
+```
+
+```{r}
+data <- read.csv("/Users/Primyaporn/Desktop/ป.โท/ปี 2 เทอม 1/Bayes Prin App/สอบปลายภาค/ach.csv")
+
+data
+
+
+```
+
+```{r}
+#1.1
+
+# สร้างโมเดล Bayesian ANOVA หรือ ANCOVA
+# ตามความเหมาะสมของตัวแปรที่คุณต้องการพิจารณา
+model <- brm(ach ~ class + (1|class), data = data)  # Bayesian ANOVA
+
+
+# model <- brm(ach ~ class + gender + texp + (1|class), data = data)  # Bayesian ANCOVA
+
+summary(model)
+
+```
+
+```{r}
+#1.2
+
+# สร้างโมเดล Bayesian Regression
+library(brms)
+
+# สร้างโมเดลโดยให้ 'ach' เป็นตัวแปรตาม และ 'texp' เป็นตัวแปรอิสระ
+model_2 <- brm(ach ~ texp + (1|class), data = data)
+
+# แสดงสรุปของโมเดล
+summary(model)
+```
+
+```{r}
+#1.3
+# Model 1: การทบทวนบทเรียนด้วยตนเองไม่ใช่ปัจจัยสำคัญ
+model1 <- brm(ach ~ hour + texp + (1 | class), data = data, family = gaussian, save_pars = save_pars(all = TRUE))
+
+# Model 2: การทบทวนบทเรียนด้วยตนเองเป็นปัจจัยสำคัญ
+model2 <- brm(ach ~ hour + texp + (1 + hour + texp | class), data = data, family = gaussian, save_pars = save_pars(all = TRUE))
+
+# คำนวณ Bayes Factor
+bf_result <- bayes_factor(model1, model2)
+bf_result
+
+```
+
+```{r}
+#1.4
+
+# Model controlling for hours of study per week
+model_control_hours <- brm(ach ~ gender + (1 | class), data = data, family = gaussian)
+
+# Summary of the model
+summary(model_control_hours)
+
+
+```
+
+```{r}
+# ความผันแปรไปตามประสบการณ์การสอนของครูประจำชั้น
+model_gender_texp <- brm(ach ~ gender + texp + (1 | class), data = data, family = gaussian)
+
+summary(model_gender_texp)
+
+```
+
+```{r}
+#2
+
+dat<-read.csv("/Users/Primyaporn/Desktop/ป.โท/ปี 2 เทอม 1/Bayes Prin App/สอบปลายภาค/CFA.csv")
+
+dat
+```
+
+```{r}
+## 1. model specification
+baseline_cfa <-'
+ f1 =~ x1 + x2 + x3 + x4 + x5 + x6
+'
+
+## 2. prepare function for iteration
+run_model <- function(model, data, seed = 123, 
+                      n.chain = 2, sample = 1000 ,
+                      burnin = 1000, adapt = 1000, thin = 1,
+                      dp = dpriors())
+{
+  set.seed(seed)
+  bcfa(model, data = data,
+              n.chains = n.chain,
+              sample = sample,
+              burnin = burnin,
+              adapt = adapt,
+              dp = dp,
+              bcontrol = list(cores = n.chain, thin = thin))
+}
+
+fit_baseline <- map(1:5, ~run_model(model = baseline_cfa, data = dat))
+
+fit_baseline
+```
+
+```{r}
+#2.2
+
+run_model <- function(model, data, seed = 123, 
+                      n.chain = 2, sample = 1000 ,
+                      burnin = 1000, adapt = 1000, thin = 1,
+                      dp = dpriors())
+{
+  set.seed(seed)
+  bcfa(model, data = data,
+              n.chains = n.chain,
+              sample = sample,
+              burnin = burnin,
+              adapt = adapt,
+              dp = dp,
+              bcontrol = list(cores = n.chain, thin = thin))
+  
+  
+cross_loadings_with_res_cov <- '
+## main factor loadings
+visual =~ x1 + prior("normal(0.5,100)") * x2 + prior("normal(0.5,100)") * x3
+textual =~ x4 + prior("normal(0.5,100)") * x5 + prior("normal(0.5,100)") * x6
+
+## cross-loadings
+visual =~ x4 + x5 + x6
+textual =~ x1 + x2 + x3
+
+## residual covariances
+x1 ~~ x4
+x2 ~~ x5
+x3 ~~ x6
+'
+
+# สร้างฟังก์ชันสำหรับสร้าง residual covariances
+gen_res_cov <- function(variables) {
+  covariances <- combn(variables, 2, FUN = function(column) paste0(column[1], " ~~ ", column[2]))
+  return(paste(c(covariances), collapse = "\n"))
+}
+
+# รายชื่อตัวแปร
+variables <- paste0("x", 1:6)
+d<-150
+
+res_cov<- gen_res_cov(variables)
+
+cross_loadings_with_res_cov_d150<- paste(cross_loadings_with_res_cov, res_cov, sep ="\n")
+
+fit_CL_with_rescv_d150 <- map(1:5, ~run_model(model = cross_loadings_with_res_cov_d150, data = dat,
+                                    dp = dpriors(lambda ="normal(0,0.01)")))
+
+fit_CL_with_rescv_d150[[1]] |> summary()del, data = dat, family = gaussian)
+summary(fit_CL_with_rescv_d150[[1]])
+
+
+```
